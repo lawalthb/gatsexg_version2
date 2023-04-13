@@ -2,7 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 
-Route::group(['prefix'=>'user','namespace'=>'user','middleware'=> ['auth','user', 'lang']],function () {
+Route::group(['prefix' => 'user', 'namespace' => 'user', 'middleware' => ['auth', 'user', 'lang']], function () {
 
     Route::get('dashboard', 'DashboardController@userDashboard')->name('userDashboard');
     Route::get('show-notification', 'DashboardController@showNotification')->name('showNotification');
@@ -20,6 +20,9 @@ Route::group(['prefix'=>'user','namespace'=>'user','middleware'=> ['auth','user'
     Route::post('google-login-enable', 'SettingController@googleLoginEnable')->name('googleLoginEnable')->middleware('check_demo');
     Route::post('save-preference', 'SettingController@savePreference')->name('savePreference');
 
+    Route::post('new-transfer-pin', 'SettingController@newTransferPin')->name('newTransferPin');
+    Route::post('change-transfer-pin', 'SettingController@changeTransferPin')->name('changeTransferPin');
+
     Route::get('/generate/new-address', 'WalletController@generateNewAddress')->name('generateNewAddress');
     Route::get('/qrcode/generate', 'WalletController@qrCodeGenerate')->name('qrCodeGenerate');
     Route::get('/make-account-default-{account_id}-{ctype}', 'WalletController@makeDefaultAccount')->name('makeDefaultAccount');
@@ -33,7 +36,7 @@ Route::group(['prefix'=>'user','namespace'=>'user','middleware'=> ['auth','user'
     Route::get('withdrawal-coin', 'DepositController@withdrawalDefaultCoin')->name('withdrawalDefaultCoin');
     Route::get('withdrawal-coin/check-balance/{balance}', 'DepositController@checkDefaultBalance')->name('checkDefaultBalance');
 
-    Route::group(['middleware'=> ['feature.buy_coin']],function () {
+    Route::group(['middleware' => ['feature.buy_coin']], function () {
         Route::get('coin-buy', 'CoinController@buyCoinPage')->name('buyCoinPage');
         Route::post('coin-buy-rate', 'CoinController@buyCoinRate')->name('buyCoinRate');
         Route::get('coin-bank-details', 'CoinController@bankDetails')->name('bankDetails');
@@ -43,7 +46,7 @@ Route::group(['prefix'=>'user','namespace'=>'user','middleware'=> ['auth','user'
     });
 
     // marketplace
-    Route::group(['namespace'=>'marketplace','middleware'=> []],function () {
+    Route::group(['namespace' => 'marketplace', 'middleware' => []], function () {
         Route::get('user-profile-{id}', 'MarketplaceController@userTradeProfile')->name('userTradeProfile');
 
         Route::get('offer', 'OfferController@myOffer')->name('myOffer');
@@ -75,7 +78,6 @@ Route::group(['prefix'=>'user','namespace'=>'user','middleware'=> ['auth','user'
         Route::post('get-market-price-offer', 'MarketplaceController@getMarketOfferPrice')->name('getMarketOfferPrice');
 
         Route::get('dispute-details-{id}', 'DisputeController@disputeDetails')->name('disputeDetails');
-
     });
 
     Route::get('user-payment-method-list', 'UserPaymentMethodController@userPaymentMethodList')->name('userPaymentMethodList');
@@ -85,7 +87,7 @@ Route::group(['prefix'=>'user','namespace'=>'user','middleware'=> ['auth','user'
     Route::post('get-payment-method-type', 'UserPaymentMethodController@getPaymentMethodType')->name('getPaymentMethodType');
 });
 
-Route::group(['middleware'=> ['auth', 'lang']], function () {
+Route::group(['middleware' => ['auth', 'lang']], function () {
     Route::post('/upload-profile-image', 'user\ProfileController@uploadProfileImage')->name('uploadProfileImage')->middleware('check_demo');
     Route::post('/user-profile-update', 'user\ProfileController@userProfileUpdate')->name('userProfileUpdate')->middleware('check_demo');
     Route::post('/phone-verify', 'user\ProfileController@phoneVerify')->name('phoneVerify');
