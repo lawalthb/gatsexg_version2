@@ -32,6 +32,10 @@ Route::group(['prefix' => 'user', 'namespace' => 'user', 'middleware' => ['auth'
     Route::get('transaction-histories', 'WalletController@transactionHistories')->name('transactionHistories');
     Route::post('withdraw-coin-rate', 'WalletController@withdrawCoinRate')->name('withdrawCoinRate');
 
+    //transfer coins
+    Route::get('/transfer-coin', 'WalletController@transferCoin')->name('transferCoin');
+    Route::post('/transfer-coin', 'WalletController@transferCoinRequest')->name('transferCoinRequest');
+
     //withdrawal coin external
     Route::get('withdrawal-coin', 'DepositController@withdrawalDefaultCoin')->name('withdrawalDefaultCoin');
     Route::get('withdrawal-coin/check-balance/{balance}', 'DepositController@checkDefaultBalance')->name('checkDefaultBalance');

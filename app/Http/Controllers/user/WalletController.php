@@ -7,6 +7,7 @@ use App\Http\Requests\withDrawRequest;
 use App\Http\Services\TransactionService;
 use App\Http\Services\WalletService;
 use App\Jobs\Withdrawal;
+use App\Jobs\Transfer;
 use App\Model\Coin;
 use App\Model\DepositeTransaction;
 use App\Model\Wallet;
@@ -24,7 +25,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
 use PragmaRX\Google2FA\Google2FA;
-
+use App\Http\Requests\TransferRequest;
+use Illuminate\Support\Facades\Hash;
 
 class WalletController extends Controller
 {
@@ -85,6 +87,8 @@ class WalletController extends Controller
         }
         return redirect()->back()->with('dismiss', __("Coin not found"));
     }
+
+
 
     // wallet details
     public function walletDetails(Request $request, $id)
@@ -313,6 +317,95 @@ class WalletController extends Controller
             $data['btc_dlr'] = custom_number_format($data['btc_dlr']);
 
             return response()->json($data);
+        }
+    }
+
+    public function transferCoin(Request $request)
+    {
+        $data['wallets'] = Wallet::join('coins', 'coins.id', '=', 'wallets.coin_id')
+            ->where(['wallets.user_id' => Auth::id(), 'coins.status' => STATUS_ACTIVE])
+            ->orderBy('wallets.id', 'ASC')
+            ->select('wallets.*')
+            ->get();
+        $data['coins'] = Coin::where('status', STATUS_ACTIVE)->get();
+        $data['title'] = __('Transfer Coin');
+
+        return view('user.transfer_coin', $data);
+    }
+
+    public function transferCoinRequest(TransferRequest $request)
+    {
+
+        $transactionService = new TransactionService();
+
+        $wallet = Wallet::join('coins', 'coins.id', '=', 'wallets.coin_id')
+            ->where(['wallets.id' => $request->wallet, 'wallets.user_id' => Auth::id()])
+            ->select(
+                'wallets.*',
+                'coins.status as coin_status',
+                'coins.is_withdrawal',
+                'coins.minimum_withdrawal',
+                'coins.maximum_withdrawal',
+                'coins.withdrawal_fees'
+            )
+            ->first();
+
+        $user = Auth::user();
+        if ($request->ajax()) {
+            if (empty($wallet)) return response()->json(['success' => false, 'message' => __('Wallet not found.')]);
+            if ($wallet->balance >= $request->amount) {
+                $checkValidate = $transactionService->checkTransferValidation($request, $user, $wallet);
+
+                if ($checkValidate['success'] == false) {
+                    return response()->json(['success' => $checkValidate['success'], 'message' => $checkValidate['message']]);
+                }
+                $checkKyc = $transactionService->kycValidationCheck($user->id);
+
+                if ($checkKyc['success'] == false) {
+                    return response()->json(['success' => $checkKyc['success'], 'message' => $checkKyc['message']]);
+                }
+                return response()->json(['success' => true]);
+            } else {
+                return response()->json(['success' => false, 'message' => __('Wallet has no enough balance')]);
+            }
+        } else {
+            if (empty($wallet)) return redirect()->back()->with('dismiss', __('Wallet not found.'));
+            $checkValidate = $transactionService->checkTransferValidation($request, $user, $wallet);
+
+            if ($checkValidate['success'] == false) {
+                return redirect()->back()->withInput($request->input())->with('dismiss', $checkValidate['message']);
+            }
+            $checkKyc = $transactionService->kycValidationCheck($user->id);
+            if ($checkKyc['success'] == false) {
+                return redirect()->back()->withInput($request->input())->with('dismiss', $checkKyc['message']);
+            }
+
+
+            if (!is_null($user->transfer_pin)) {
+                $validTransferPin = Hash::check($request->pin, $user->transfer_pin) ? true : false;
+            } else {
+                return redirect()->back()->withInput($request->input())->with('dismiss', __('You need to create a transfer PIN'));
+            }
+
+            $data = $request->all();
+            $data['user_id'] = Auth::id();
+            $request = new Request();
+            $request = $request->merge($data);
+
+            if ($validTransferPin) {
+                if ($wallet->balance >= $request->amount) {
+                    try {
+                        dispatch(new Transfer($request->all()))->onQueue('withdrawal');
+                        return redirect()->back()->with('success', __('Transfer placed successfully'));
+                    } catch (\Exception $e) {
+                        DB::rollBack();
+                        Log::error($e->getMessage());
+                        return redirect()->back()->withInput($request->input())->with('dismiss', __('Something went wrong.'));
+                    }
+                } else
+                    return redirect()->back()->withInput($request->input())->with('dismiss', __('Wallet has no enough balance'));
+            } else
+                return redirect()->back()->withInput($request->input())->with('dismiss', __('Incorrect Transfer PIN'));
         }
     }
 }
