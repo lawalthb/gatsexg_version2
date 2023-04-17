@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Created by PhpStorm.
  * User: bacchu
@@ -41,12 +42,12 @@ class WalletService
         $response = ['success' => false, 'message' => __('Something went wrong')];
         try {
             $coins = Coin::where(['status' => STATUS_ACTIVE])->orderBy('id', 'desc')->get();
-            if(isset($coins[0])) {
+            if (isset($coins[0])) {
                 foreach ($coins as $coin) {
-                    Wallet::firstOrCreate(['user_id' => $userId, 'coin_id' => $coin->id],[
-                        'name' => $coin->type. ' Wallet',
+                    Wallet::where(['user_id' => $userId, 'coin_id' => $coin->id])->update([
+                        'name' => $coin->type . ' Wallet',
                         'coin_type' => $coin->type,
-                        'unique_code' => uniqid().date('').time()
+                        // 'unique_code' => uniqid().date('').time()
                     ]);
                 }
             }
@@ -63,10 +64,10 @@ class WalletService
     public function myWalletList($userId)
     {
         try {
-            $this->userWalletUpdate($userId);
+            // $this->userWalletUpdate($userId);
             $data['wallets'] = Wallet::join('coins', 'coins.id', '=', 'wallets.coin_id')
                 ->where(['wallets.user_id' => $userId, 'coins.status' => STATUS_ACTIVE])
-                ->orderBy('wallets.id','ASC')
+                ->orderBy('wallets.id', 'ASC')
                 ->select('wallets.*')
                 ->get();
             $data['coins'] = Coin::where('status', STATUS_ACTIVE)->get();
@@ -82,28 +83,28 @@ class WalletService
     public function sendCoinBalanceToUser($request)
     {
         try {
-            if(isset($request->wallet_id[0])) {
+            if (isset($request->wallet_id[0])) {
                 $wallets = $request->wallet_id;
                 $counts = sizeof($request->wallet_id);
-                for($i = 0; $i < $counts; $i++) {
+                for ($i = 0; $i < $counts; $i++) {
                     $wallet = Wallet::find($wallets[$i]);
                     if (isset($wallet)) {
-                        AdminSendCoinHistory::create($this->balanceSendData($wallet,$request->amount,Auth::id()));
-                        $wallet->increment('balance',$request->amount);
+                        AdminSendCoinHistory::create($this->balanceSendData($wallet, $request->amount, Auth::id()));
+                        $wallet->increment('balance', $request->amount);
                     }
                 }
-                $response = ['success' => true, 'message' =>__('Coin sent successful')];
+                $response = ['success' => true, 'message' => __('Coin sent successful')];
             } else {
-                $response = ['success' => false, 'message' =>__('Must select at least one wallet')];
+                $response = ['success' => false, 'message' => __('Must select at least one wallet')];
             }
         } catch (\Exception $e) {
-            $this->logger->log('sendCoinBalanceToUser',$e->getMessage());
+            $this->logger->log('sendCoinBalanceToUser', $e->getMessage());
             $response = ['success' => false, 'message' => __('Something went wrong'), 'data' => []];
         }
         return $response;
     }
     // make wallet send history data
-    public function balanceSendData($wallet,$amount,$authId)
+    public function balanceSendData($wallet, $amount, $authId)
     {
         return [
             'user_id' => $wallet->user_id,

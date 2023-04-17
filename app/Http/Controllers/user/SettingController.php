@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Session;
+use Illuminate\Support\Facades\Hash;
 use PragmaRX\Google2FA\Google2FA;
 
 class SettingController extends Controller
@@ -49,7 +50,6 @@ class SettingController extends Controller
                 } else {
                     return redirect()->back()->with('dismiss', __('Google authentication code is invalid'));
                 }
-
             } else {
                 if (!empty($user->google2fa_secret)) {
                     $google2fa = new Google2FA();
@@ -91,7 +91,6 @@ class SettingController extends Controller
             return redirect()->back()->with('success', __('Google two factor authentication is disabled'));
         } else
             return redirect()->back()->with('dismiss', __('For using google two factor authentication,please setup your authentication'));
-
     }
 
     // save preference
@@ -107,4 +106,52 @@ class SettingController extends Controller
         }
     }
 
+
+    public function newTransferPin(Request $request)
+    {
+        $request->validate(['pin' => 'required|integer|digits:4|confirmed'], ['pin.integer' => 'PIN should be a number', 'pin.digits' => 'PIN should not be more that 4 digits', 'pin.confirmed' => 'PIN does not match']);
+
+        $pin = Hash::make($request->pin);
+        $user = Auth::user();
+        if (is_null($user->transfer_pin)) {
+            $user->transfer_pin = $pin;
+            $user->save();
+            return redirect()->back()->with('success', __('Transfer PIN has been created'));
+        } else {
+            return redirect()->back()->with('dismiss', __('You have an existing transfer PIN'));
+        }
+    }
+
+    public function changeTransferPin(Request $request)
+    {
+
+        $request->validate([
+            'old_pin' => 'required|integer|digits:4',
+            'pin' => 'required|integer|digits:4|confirmed'
+        ], [
+            'old_pin.integer' => 'Old PIN should be a number',
+            'old_pin.digits' => 'Old PIN should not be more that 4 digits',
+
+            'pin.integer' => 'PIN should be a number',
+            'pin.digits' => 'PIN should not be more that 4 digits',
+            'pin.confirmed' => 'PIN does not match'
+        ]);
+
+
+        $pin = Hash::make($request->pin);
+        $user = Auth::user();
+        if (!is_null($user->transfer_pin)) {
+
+            if (Hash::check($request->old_pin, $user->transfer_pin)) {
+                $user->transfer_pin = $pin;
+                $user->save();
+            } else {
+                return redirect()->back()->with('dismiss', __('Invalid Old Transfer PIN'));
+            }
+
+            return redirect()->back()->with('success', __('Transfer PIN has been updated'));
+        } else {
+            return redirect()->back()->with('dismiss', __('You need to create a transfer PIN'));
+        }
+    }
 }

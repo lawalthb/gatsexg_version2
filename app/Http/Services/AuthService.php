@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Created by PhpStorm.
  * User: bacchu
@@ -55,13 +56,12 @@ class AuthService
             $user->password = Hash::make($request->new_password);
 
             $user->save();
-//         DB::table('oauth_access_tokens')
-//             ->where('user_id', Auth::id())->where('id', '!=', Auth::user()->token()->id)
-//             ->delete();
+            //         DB::table('oauth_access_tokens')
+            //             ->where('user_id', Auth::id())->where('id', '!=', Auth::user()->token()->id)
+            //             ->delete();
 
             return ['success' => true, 'message' => __('Password change successfully')];
-        } catch (\Exception $exception)
-        {
+        } catch (\Exception $exception) {
             return ['success' => false, 'message' => __('Something went wrong')];
         }
     }
@@ -90,16 +90,16 @@ class AuthService
             $user = User::create($this->userCreateData($request));
             UserVerificationCode::create(['user_id' => $user->id, 'code' => $mail_key, 'expired_at' => date('Y-m-d', strtotime('+15 days'))]);
             $coins = Coin::orderBy('id', 'ASC')->get();
-            if(isset($coins[0])) {
+            if (isset($coins[0])) {
                 foreach ($coins as $coin) {
-                    Wallet::create($this->userWalletCreateData($user,$coin));
+                    // Wallet::create($this->userWalletCreateData($user,$coin));
                 }
             }
             if ($parentUserId > 0) {
                 $this->affiliateService->createReferralUser($user->id, $parentUserId);
             }
             DB::commit();
-            if (!empty($user)){
+            if (!empty($user)) {
                 $this->sendVerifyemail($user, $mail_key);
                 $data = ['success' => true, 'data' => [], 'message' => __('Sign up successful, Please verify your mail')];
             } else {
@@ -118,23 +118,23 @@ class AuthService
         return [
             'first_name' => $request->first_name,
             'last_name' => $request->last_name,
-            'username' => make_unique_slug($request->username,'users','username'),
+            'username' => make_unique_slug($request->username, 'users', 'username'),
             'email' => $request->email,
-            'unique_code' => uniqid().date('').time(),
+            'unique_code' => uniqid() . date('') . time(),
             'role' => USER_ROLE_USER,
             'password' => Hash::make($request->password),
             'country' => $request->country
         ];
     }
     // user wallet create data
-    public function userWalletCreateData($user,$coin)
+    public function userWalletCreateData($user, $coin)
     {
         return [
             'user_id' => $user->id,
             'coin_id' => $coin->id,
             'coin_type' => $coin->type,
-            'name' => $coin->type.' wallet',
-            'unique_code'=>uniqid().date('').time(),
+            'name' => $coin->type . ' wallet',
+            'unique_code' => uniqid() . date('') . time(),
         ];
     }
 
@@ -145,7 +145,7 @@ class AuthService
     public function sendVerifyemail($user, $mail_key)
     {
         $mailService = new MailService();
-        $userName = $user->first_name.' '.$user->last_name;
+        $userName = $user->first_name . ' ' . $user->last_name;
         $userEmail = $user->email;
         $companyName = isset(allsetting()['app_title']) && !empty(allsetting()['app_title']) ? allsetting()['app_title'] : __('Company Name');
         $subject = __('Email Verification | :companyName', ['companyName' => $companyName]);
@@ -161,9 +161,11 @@ class AuthService
     public function emailVerifyProcess($request)
     {
         try {
-            $uvc = UserVerificationCode::join('users','users.id','=', 'user_verification_codes.user_id')
-                ->where(['user_verification_codes.code' => $request->code,
-                    'users.email'=>$request->email, 'user_verification_codes.status' => STATUS_PENDING])
+            $uvc = UserVerificationCode::join('users', 'users.id', '=', 'user_verification_codes.user_id')
+                ->where([
+                    'user_verification_codes.code' => $request->code,
+                    'users.email' => $request->email, 'user_verification_codes.status' => STATUS_PENDING
+                ])
                 ->where('user_verification_codes.expired_at', '>=', date('Y-m-d'))
                 ->select('user_verification_codes.id as uv_id', 'users.id', 'user_verification_codes.*')
                 ->first();
@@ -193,33 +195,33 @@ class AuthService
         try {
             $user = User::where('email', $request->email)->first();
             if (!empty($user)) {
-                if(($user->role == USER_ROLE_USER) || ($user->role == USER_ROLE_ADMIN)) {
+                if (($user->role == USER_ROLE_USER) || ($user->role == USER_ROLE_ADMIN)) {
                     if (Auth::attempt(['email' => $request->email, 'password' => $request->password])) {
                         $token = $user->createToken($request->email)->accessToken;
                         if ($user->status == STATUS_SUCCESS) {
                             if (!empty($user->is_verified)) {
                                 $verify_info = Cache::get('g2f_checked');
-                                if(($user->g2f_enabled) && is_null($verify_info)) {
+                                if (($user->g2f_enabled) && is_null($verify_info)) {
                                     $data['success'] = true;
-                                    $data['data'] = ['access_token' => $token, 'access_type' => "Bearer", 'user' => null, 'g2f_verify'=>true,'email_verified' => 1];
+                                    $data['data'] = ['access_token' => $token, 'access_type' => "Bearer", 'user' => null, 'g2f_verify' => true, 'email_verified' => 1];
                                     $data['message'] = __('Successfully logged in');
-                                }else{
+                                } else {
                                     createUserActivity(Auth::user()->id, USER_ACTIVITY_LOGIN);
                                     $img = asset('assets/common/img/avater.png');
                                     if (!empty($user->photo)) {
-                                        $img = asset(IMG_USER_PATH.$user->photo);
+                                        $img = asset(IMG_USER_PATH . $user->photo);
                                     }
                                     $user->photo = $img;
                                     $data['success'] = true;
-                                    $data['data'] = ['access_token' => $token, 'access_type' => "Bearer", 'user' => $user, 'g2f_verify'=>false, 'email_verified' => 1];
+                                    $data['data'] = ['access_token' => $token, 'access_type' => "Bearer", 'user' => $user, 'g2f_verify' => false, 'email_verified' => 1];
                                     $data['message'] = __('Successfully logged in');
                                 }
                             } else {
-                                $existsToken = User::join('user_verification_codes','user_verification_codes.user_id','users.id')
-                                    ->where('user_verification_codes.user_id',$user->id)
-                                    ->whereDate('user_verification_codes.expired_at' ,'>=', Carbon::now()->format('Y-m-d'))
+                                $existsToken = User::join('user_verification_codes', 'user_verification_codes.user_id', 'users.id')
+                                    ->where('user_verification_codes.user_id', $user->id)
+                                    ->whereDate('user_verification_codes.expired_at', '>=', Carbon::now()->format('Y-m-d'))
                                     ->first();
-                                if(!empty($existsToken)) {
+                                if (!empty($existsToken)) {
                                     $mail_key = $existsToken->code;
                                 } else {
                                     $mail_key = randomNumber(6);
@@ -282,15 +284,15 @@ class AuthService
             DB::beginTransaction();
             try {
                 $key = randomNumber(6);
-                $existsToken = User::join('user_verification_codes','user_verification_codes.user_id','users.id')
+                $existsToken = User::join('user_verification_codes', 'user_verification_codes.user_id', 'users.id')
                     ->where('user_verification_codes.user_id', $user->id)
                     ->where('user_verification_codes.status', STATUS_PENDING)
-                    ->whereDate('user_verification_codes.expired_at' ,'>=', Carbon::now()->format('Y-m-d'))
+                    ->whereDate('user_verification_codes.expired_at', '>=', Carbon::now()->format('Y-m-d'))
                     ->first();
-                if(!empty($existsToken)) {
+                if (!empty($existsToken)) {
                     $token = $existsToken->code;
                 } else {
-                    UserVerificationCode::create(['user_id' => $user->id, 'code'=>$key,'expired_at' => date('Y-m-d', strtotime('+15 days')), 'status' => STATUS_PENDING]);
+                    UserVerificationCode::create(['user_id' => $user->id, 'code' => $key, 'expired_at' => date('Y-m-d', strtotime('+15 days')), 'status' => STATUS_PENDING]);
                     $token = $key;
                 }
 
@@ -300,7 +302,7 @@ class AuthService
                 ];
 
                 $mailService = new MailService();
-                $userName = $user->first_name.' '.$user->last_name;
+                $userName = $user->first_name . ' ' . $user->last_name;
                 $userEmail = $user->email;
                 $companyName = isset(allsetting()['app_title']) && !empty(allsetting()['app_title']) ? allsetting()['app_title'] : __('Company Name');
                 $subject = __('Forgot Password | :companyName', ['companyName' => $companyName]);
@@ -334,11 +336,11 @@ class AuthService
         try {
             $user = User::where(['email' => $request->email])->first();
             if (!empty($user)) {
-                $existsToken = User::join('user_verification_codes','user_verification_codes.user_id','users.id')
-                    ->where('user_verification_codes.user_id',$user->id)
+                $existsToken = User::join('user_verification_codes', 'user_verification_codes.user_id', 'users.id')
+                    ->where('user_verification_codes.user_id', $user->id)
                     ->where('user_verification_codes.code', $request->code)
                     ->where('user_verification_codes.status', STATUS_PENDING)
-                    ->whereDate('user_verification_codes.expired_at' ,'>=', Carbon::now()->format('Y-m-d'))
+                    ->whereDate('user_verification_codes.expired_at', '>=', Carbon::now()->format('Y-m-d'))
                     ->select('user_verification_codes.*')
                     ->first();
                 if (empty($existsToken)) {
@@ -347,7 +349,7 @@ class AuthService
                 }
                 $data_ins['password'] = hash::make($request->password);
                 $data_ins['is_verified'] = STATUS_SUCCESS;
-                if(!Hash::check($request->password, $user->password)) {
+                if (!Hash::check($request->password, $user->password)) {
                     User::where(['id' => $existsToken->user_id])->update($data_ins);
                     UserVerificationCode::where(['id' => $existsToken->id])->delete();
                     DB::commit();
@@ -382,10 +384,9 @@ class AuthService
             }
             $user->password = Hash::make($request->password);
             $user->save();
-            return ['success' => true, 'data'=>[], 'message' => __('Password change successfully')];
-        } catch (\Exception $exception)
-        {
-            return ['success' => false, 'data'=>[], 'message' => __('Something went wrong')];
+            return ['success' => true, 'data' => [], 'message' => __('Password change successfully')];
+        } catch (\Exception $exception) {
+            return ['success' => false, 'data' => [], 'message' => __('Something went wrong')];
         }
     }
 }

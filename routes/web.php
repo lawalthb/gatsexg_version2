@@ -11,7 +11,7 @@
 |
 */
 
-Route::group(['middleware'=> 'installation'],function () {
+Route::group(['middleware' => 'installation'], function () {
     Route::group(['middleware' => 'default_lang'], function () {
 
         Route::get('/', 'LandingController@home')->name('home');
@@ -27,11 +27,14 @@ Route::group(['middleware'=> 'installation'],function () {
         Route::get('/g2f-checked', 'AuthController@g2fChecked')->name('g2fChecked');
         Route::post('/g2f-verify', 'AuthController@g2fVerify')->name('g2fVerify')->middleware('check_demo');
         Route::post('subscription-process', 'AuthController@subscriptionProcess')->name('subscriptionProcess')->middleware('check_demo');
-        Route::get('/see-details/{slug}','LandingController@seeDetails')->name('seeDetails');
+        Route::get('/see-details/{slug}', 'LandingController@seeDetails')->name('seeDetails');
 
 
         // Referral Registration
         Route::get('referral-reg', 'user\ReferralController@signup')->name('referralRegistration');
+
+        // Coinremitter Webhook
+        Route::any('webhook/v1/coinremitter-webhook', 'WebhookController@coin_remitter_webhook');
     });
 
     require base_path('routes/link/admin.php');
@@ -41,4 +44,3 @@ Route::group(['middleware'=> 'installation'],function () {
         Route::get('logout', 'AuthController@logOut')->name('logOut');
     });
 });
-
